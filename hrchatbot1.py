@@ -9,6 +9,7 @@ import os
 
 PERSIST_DIR = "./chroma_db"
 PDF_PATH = "hr_policy.pdf"
+PDF_PATH = "staffrecruitment.pdf"
 
 print("Loading PDF...")
 loader = PyPDFLoader(PDF_PATH)
@@ -50,7 +51,7 @@ Context:
 Question: {question}
 """)
 
-retriever = db.as_retriever(search_kwargs={"k": 2})
+retriever = db.as_retriever(search_kwargs={"k": 10})
 
 qa_chain = (
     {"context": retriever, "question": RunnablePassthrough()}

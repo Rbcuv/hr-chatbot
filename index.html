@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR Buddy — Your Policy Pal</title>
+    <title>HR Assist — Your Policy Pal</title>
     <meta name="description"
-        content="HR Buddy — Ask any HR policy question in a casual, friendly way. Powered by Groq or your local AI.">
+        content="HR Assist — Ask any HR policy question in a casual, friendly way. Powered by Groq or your local AI.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -396,6 +396,18 @@
             border: 1.5px solid var(--border);
         }
 
+        .msg-timestamp {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            text-align: right;
+            display: block;
+        }
+
+        .user-bubble .msg-timestamp {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
         .message-bubble {
             max-width: 72%;
             padding: 14px 18px;
@@ -634,6 +646,87 @@
                 max-width: 85%;
             }
         }
+
+        /* ── Login Modal ────────────────────────────────────────── */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 20px;
+            width: 320px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-content h3 {
+            font-size: 18px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .modal-input {
+            padding: 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .modal-input:focus {
+            border-color: var(--primary);
+        }
+
+        .modal-btn {
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .modal-btn.cancel {
+            background: #e5e7eb;
+            color: var(--text-main);
+            margin-top: -8px;
+        }
+
+        .auth-btn {
+            background: rgba(124, 58, 237, 0.1);
+            color: var(--primary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
     </style>
 </head>
 
@@ -644,7 +737,7 @@
         <div class="brand">
             <div class="brand-icon">🤝</div>
             <div class="brand-text">
-                <h1>HR Buddy</h1>
+                <h1>HR Assist</h1>
                 <span>Your Policy Pal</span>
             </div>
         </div>
@@ -702,13 +795,18 @@
             <div class="header-left">
                 <div class="header-avatar">🤝</div>
                 <div class="header-info">
-                    <h2>HR Buddy</h2>
+                    <h2>HR Assist</h2>
                     <p>Ask me anything about company policies!</p>
                 </div>
             </div>
-            <div class="active-mode-badge groq" id="modeBadge">
-                <div class="badge-dot groq" id="badgeDot"></div>
-                <span id="badgeText">Groq Cloud · Fast</span>
+            <div class="header-right">
+                <div class="active-mode-badge groq" id="modeBadge">
+                    <div class="badge-dot groq" id="badgeDot"></div>
+                    <span id="badgeText">Groq Cloud · Fast</span>
+                </div>
+                <button id="loginBtn" class="auth-btn" onclick="openLoginModal()">Login</button>
+                <button id="logoutBtn" class="auth-btn" onclick="logout()"
+                    style="display:none; background:#fee2e2; color:#ef4444;">Logout</button>
             </div>
         </div>
 
@@ -717,9 +815,14 @@
                 <div class="message-row">
                     <div class="avatar bot-avatar">🤝</div>
                     <div class="message-bubble bot-bubble">
-                        <p>Hey there! 👋 I'm <strong>HR Buddy</strong>, your go-to pal for all things HR policy!</p>
-                        <p>Got questions about leaves, benefits, working hours, or anything else? Just ask away — I'm
-                            here to help! 😊</p>
+                        <div class="content">
+                            <p>Hey there! 👋 I'm <strong>HR Assist</strong>, your go-to pal for all things HR policy!
+                            </p>
+                            <p>Got questions about leaves, benefits, working hours, or anything else? Just ask away —
+                                I'm
+                                here to help! 😊</p>
+                        </div>
+                        <div class="msg-timestamp" id="initialTimestamp"></div>
                     </div>
                 </div>
             </div>
@@ -743,6 +846,19 @@
         </div>
     </div>
 
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Staff / HR Login</h3>
+            <input type="text" id="usernameInput" class="modal-input" placeholder="Username">
+            <input type="password" id="passwordInput" class="modal-input" placeholder="Password">
+            <button class="modal-btn" onclick="doLogin()">Login</button>
+            <button class="modal-btn cancel" onclick="closeLoginModal()">Continue as General</button>
+            <p id="loginError" style="color:red; font-size:12px; text-align:center; display:none;">Invalid credentials
+            </p>
+        </div>
+    </div>
+
     <script>
         const chatMessages = document.getElementById("chatMessages");
         const chatContainer = document.getElementById("chatContainer");
@@ -756,6 +872,51 @@
         const localWarning = document.getElementById("localWarning");
 
         let currentMode = "groq"; // default
+        let currentUserRole = "general"; // default
+
+        // ── Auth ─────────────────────────────────────────────────────
+        function openLoginModal() { document.getElementById("loginModal").classList.add("active"); }
+        function closeLoginModal() { document.getElementById("loginModal").classList.remove("active"); document.getElementById("loginError").style.display = "none"; }
+
+        async function doLogin() {
+            const u = document.getElementById("usernameInput").value.trim();
+            const p = document.getElementById("passwordInput").value.trim();
+            if (!u || !p) return;
+
+            try {
+                const res = await fetch("/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+                const data = await res.json();
+
+                if (data.role) {
+                    currentUserRole = data.role;
+                    document.getElementById("loginBtn").style.display = "none";
+                    document.getElementById("logoutBtn").style.display = "block";
+                    document.getElementById("logoutBtn").textContent = `Logout (${data.role.toUpperCase()})`;
+                    closeLoginModal();
+
+                    // Clear user inputs
+                    document.getElementById("usernameInput").value = "";
+                    document.getElementById("passwordInput").value = "";
+
+                    addMessage(false, `<p>Successfully logged in as <strong>${data.role.toUpperCase()}</strong>.</p>`);
+                } else {
+                    document.getElementById("loginError").style.display = "block";
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function logout() {
+            currentUserRole = "general";
+            document.getElementById("loginBtn").style.display = "block";
+            document.getElementById("logoutBtn").style.display = "none";
+            addMessage(false, `<p>Logged out. Switched to General access.</p>`);
+        }
 
         // ── Mode Selection ───────────────────────────────────────────
         function setMode(mode) {
@@ -818,6 +979,13 @@
             content.innerHTML = html;
             bubble.appendChild(content);
 
+            const timestamp = document.createElement("div");
+            timestamp.className = "msg-timestamp";
+            const now = new Date();
+            timestamp.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            bubble.appendChild(timestamp);
+
             row.appendChild(avatar);
             row.appendChild(bubble);
             chatMessages.appendChild(row);
@@ -865,7 +1033,7 @@
                 const res = await fetch("/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question, mode: currentMode })
+                    body: JSON.stringify({ question, mode: currentMode, role: currentUserRole })
                 });
 
                 const data = await res.json();
@@ -891,6 +1059,15 @@
                 sendMessage();
             }
         }
+
+        // Set initial timestamp for the greeting message
+        document.addEventListener("DOMContentLoaded", () => {
+            const initialTimestamp = document.getElementById("initialTimestamp");
+            if (initialTimestamp) {
+                const now = new Date();
+                initialTimestamp.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+        });
     </script>
 </body>
 
