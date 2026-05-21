@@ -28,12 +28,41 @@ PERSIST_DIR = "./chroma_db_v2"
 PDF_PATHS   = ["hr_policy.pdf", "staffrecruitment.pdf"]
 
 # Initialize web search tool
-from duckduckgo_search import DDGS
+from ddgs import DDGS
+
+def _bing_search(query: str, max_results: int = 4) -> list[dict[str, str]]:
+    with DDGS() as ddgs:
+        return list(ddgs.text(query, max_results=max_results))
+
+
+def _search_with_retries(query: str, max_results: int = 4, attempts: int = 3) -> list[dict[str, str]]:
+    for attempt in range(1, attempts + 1):
+        try:
+            results = _bing_search(query, max_results=max_results)
+            logger.info(f"Bing search attempt {attempt} for query='{query}' returned {len(results)} results")
+            if results:
+                return results
+        except Exception as e:
+            logger.warning(f"Bing search attempt {attempt} failed for query='{query}': {e}")
+    return []
+
 
 def web_search(query: str) -> str:
     try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=4))
+        results = _search_with_retries(query, max_results=4)
+        if not results:
+            fallback_query = query
+            if "latest" not in query.lower():
+                fallback_query = f"latest {query}"
+            if fallback_query != query:
+                logger.info(f"Primary search empty; trying fallback query='{fallback_query}'")
+                results = _search_with_retries(fallback_query, max_results=4)
+        if not results and "news" not in query.lower():
+            fallback_query = f"{query} news"
+            logger.info(f"Secondary fallback search for query='{fallback_query}'")
+            results = _search_with_retries(fallback_query, max_results=4)
+
+        logger.info(f"Web search returned {len(results)} results for original query: {query}")
         if not results:
             return "No web results found."
         return "\n\n".join(
@@ -106,7 +135,11 @@ local_llm = ChatOllama(
 
 # ── Prompt Template ────────────────────────────────────────────────────────────
 prompt = ChatPromptTemplate.from_template("""You are HR Assist, a friendly and helpful HR policy assistant.
-Your job is to answer questions ONLY using the context provided below.
+Your job is to answer questions using the context provided below.
+
+The context may include:
+- relevant policy documents loaded from the provided PDFs
+- external web search results for HR users
 
 Rules:
 - Answer clearly and concisely in a friendly tone.
@@ -123,15 +156,15 @@ Rules:
 
 - Do NOT mix data between different candidates.
 - Do NOT assume or guess.
-- If no exact match is found, say:
+- If no exact match is found in the context, say:
   "No shortlisted candidates found in the document."
 
-- Use ONLY the provided context.
+- Use only the provided context, including external web search results when they are available.
 - Format answers using bullet points when listing names.
 - For simple greetings (e.g., "hi", "hello", "how are you"), respond naturally and casually without checking the policy or stating that the information is missing.
-- If the answer to a policy question is not in the context, politely state that the current documents do not seem to contain information on that specific topic. 
+- If the answer to a policy question is not in the context, politely state that the current context does not contain information on that specific topic.
 - You can suggest related topics if they are mentioned in the context.
-- Do NOT make up or guess any information. Use ONLY the provided context.
+- Do NOT make up or guess any information. Use only the provided context.
 - Format your answer neatly. Use bullet points if listing multiple items.
 
 Role Instructions: {role_instructions}
@@ -204,10 +237,21 @@ def chat():
         mode = "groq"  # fallback to groq for unknown modes
 
     role = str(data.get("role", "general")).strip().lower()
+    internet_val = data.get("internet", True)
+    internet = internet_val in (True, "true", "True", 1, "1")
+    logger.info(f"Role received: {role}, Mode: {mode}, Internet: {internet}")
 
     # Determine role-specific instructions
     if role == "hr":
-        role_instructions = "You are answering an HR representative. Use both the provided document context and the external web search context to give a comprehensive answer."
+        if internet:
+            role_instructions = (
+                "You are answering an HR representative. Use both the provided document context and the external web search context to give a comprehensive answer. "
+                "If the question asks for recent HR news, updates, or current events, prefer the external web search results and clearly summarize them."
+            )
+        else:
+            role_instructions = (
+                "You are answering an HR representative. Answer based entirely on the provided document context."
+            )
     elif role == "staff":
         role_instructions = "You are answering a staff member. Answer based entirely on the provided document context."
     else:
@@ -226,8 +270,8 @@ def chat():
             docs = retriever.invoke(question)
             context = "\n\n".join(doc.page_content for doc in docs)
             
-            # If HR, append web search results
-            if role == "hr":
+            # If HR and internet search enabled, append web search results
+            if role == "hr" and internet:
                 try:
                     logger.info(f"Executing web search for HR query: {question}")
                     web_results = web_search(question)
