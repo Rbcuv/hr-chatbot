@@ -1,0 +1,38 @@
+[
+  {
+    "username": "admin",
+    "password": "admin@2025",
+    "role": "admin",
+    "token": "ADMIN_TOKEN"
+  },
+  {
+    "username": "Hr1",
+    "password": "hr@2025",
+    "role": "hr",
+    "token": "HR1_TOKEN"
+  },
+  {
+    "username": "Hrm2",
+    "password": "hrm@2025",
+    "role": "hr",
+    "token": "HR2_TOKEN"
+  },
+  {
+    "username": "Staff1",
+    "password": "staff1@2025",
+    "role": "staff",
+    "token": "STAFF1_TOKEN"
+  },
+  {
+    "username": "Staff2",
+    "password": "staff2@2025",
+    "role": "staff",
+    "token": "STAFF2_TOKEN"
+  },
+  {
+    "username": "hr",
+    "password": "hr",
+    "role": "hr",
+    "token": "HR_TOKEN"
+  }
+]

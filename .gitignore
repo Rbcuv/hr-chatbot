@@ -1,0 +1,15 @@
+venv/
+venv*/
+chroma_db/
+chroma_db_v2/
+__pycache__/
+*.pyc
+.env
+# hr_policy.pdf
+pdf_summary.txt
+full_text.txt
+scratch/
+.vscode/
+*.tmp
+patch_*.py
+temp_*.xlsx
